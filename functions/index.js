@@ -4,6 +4,8 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const cors = require('cors')({origin: true});
+const request = require('request');
+
 
 const firebaseConfig = {
     apiKey: "AIzaSyB4IV-tlnFXP09Df_i_dKn1Wm3jHX9ObJQ",
@@ -89,23 +91,37 @@ exports.getCallbackRequests = functions.https.onRequest((req, res) => {
 });
 
 //OTP 
-exports.sendOTP = functions.https.onRequest((req, res) => {
-    cors(req, res, () => {     
+exports.generateOTP = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {
+
+        const number = req.query.number;
+        const username = req.query.username;
 
         return new Promise(function(resolve, reject)
         {    
             var rnd6 = Math.floor(100000 + Math.random() * 900000);
-            var msg = `Your OTP for Partner On-boarding process is ${rnd6} \n
-            Kindly share it with our Representative.Sender: Gympanzee. \n
-            https://tx.gl/r/n0qG`; 
-            const number = req.query.number;
+            var msg = `Your OTP for Partner On-boarding process is ${rnd6}.\n\nKindly share it with our Representative.\nSender: Gympanzee.\nhttps://tx.gl/r/n0qG`; 
             
-            const url = `https://api.textlocal.in/send/?apikey=${textLocal.apiKey}&
-            number=${number}&sender=${textLocal.sender}&message=${msg}`;
+            const url = `https://api.textlocal.in/send/?apikey=${textLocal.apiKey}&numbers=${number}&sender=${textLocal.sender}&message=${msg}`;
 
+            request(url, function (error, response, body) {
+                console.log('msg',msg);
+                console.log('body:', body);
+             
+                //for debug
+                //send it to a temp database
+                const tempFolder = admin.database().ref(`Temp/OTP/${username}`);
 
-            //for debug
-            res.send(`${rnd6} -- ${msg}`);
+                return new Promise(function(resolve, reject)
+                {
+                    tempFolder.set({
+                        OTP : `${rnd6}`
+                    });
+
+                    res.send(``); 
+                });
+                    
+            });
 
         });
     });      
