@@ -91,6 +91,7 @@ exports.getCallbackRequests = functions.https.onRequest((req, res) => {
 });
 
 //OTP 
+//OTP Generation and Sending 
 exports.generateOTP = functions.https.onRequest((req, res) => {
     cors(req, res, () => {
 
@@ -101,29 +102,80 @@ exports.generateOTP = functions.https.onRequest((req, res) => {
         {    
             var rnd6 = Math.floor(100000 + Math.random() * 900000);
             var msg = `Your OTP for Partner On-boarding process is ${rnd6}.\n\nKindly share it with our Representative.\nSender: Gympanzee.\nhttps://tx.gl/r/n0qG`; 
+
+            //send it to a temp database
+            admin.firestore()
+            .collection("Temp").doc("OTP")
+            .collection("NewPartner").doc(username)
+            .set({
+                otp: `${rnd6}`
+            })
             
-            const url = `https://api.textlocal.in/send/?apikey=${textLocal.apiKey}&numbers=${number}&sender=${textLocal.sender}&message=${msg}`;
+            var url = `https://api.textlocal.in/send/?apikey=${textLocal.apiKey}&numbers=${number}&sender=${textLocal.sender}&message=${msg}`;
 
             request(url, function (error, response, body) {
                 console.log('msg',msg);
                 console.log('body:', body);
              
                 //for debug
-                //send it to a temp database
-                const tempFolder = admin.database().ref(`Temp/OTP/${username}`);
-
-                return new Promise(function(resolve, reject)
-                {
-                    tempFolder.set({
-                        OTP : `${rnd6}`
-                    });
-
-                    res.send(``); 
-                });
-                    
+                res.send(``); 
+               
             });
 
         });
     });      
 });
 
+//OTP Validation and adding user
+exports.addPartner = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {
+
+        //flag == 144 => add partner
+        const flag=req.query.flag;
+        const otp = req.query.otp;
+        const number = req.query.number;
+        const username = req.query.username;
+        const email = req.query.email;
+        const name = req.query.name;
+
+        return new Promise(function(resolve, reject)
+        {    
+
+            admin.firestore()
+            .collection("Temp").doc("OTP")
+            .collection("NewPartner").doc(username)
+            .get()
+                .then(function(doc)
+                {
+                    if(doc.otp == otp)
+                    {
+
+                        var _data = {
+                            name: name,
+                            __stage__: "partnerAdded",
+                            username: username,
+                            password: "somepassword",
+                            phone: number,
+                            email: email
+                        }
+
+                        if(flag !="144") 
+                        {
+                            _data.__stage__ = "addedForApproval";
+                            _data.password="";
+                        }
+
+                        admin.firestore().collection("gyms")
+                        .where("number", "==", number)
+                        .set(_data);
+
+                    }  
+                    else
+                    {
+                        res.send('error');
+                    } 
+                });   
+
+        });
+    });      
+});
