@@ -167,7 +167,11 @@ exports.addPartner = functions.https.onRequest((req, res) => {
 
                         admin.firestore().collection("gyms")
                         .where("number", "==", number)
-                        .set(_data);
+                        .update(_data).then(function()
+                        {
+                            res.send('success');
+
+                        });
 
                     }  
                     else
@@ -175,6 +179,31 @@ exports.addPartner = functions.https.onRequest((req, res) => {
                         res.send('error');
                     } 
                 });   
+
+        });
+    });      
+});
+
+//set Stage of completion of gym
+exports.setGymStage = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {
+
+        const uid=req.query.uid;
+        const stage = req.query.stage;
+
+        return new Promise(function(resolve, reject)
+        {    
+            var _data = {RegistrationStatus: stage};
+
+            admin.firestore().collection("gyms")
+            .doc(uid)
+            .update(_data)
+            .then(function() {
+                console.log("Document successfully written!");
+                res.send(_data);
+            })
+            ;
+
 
         });
     });      
