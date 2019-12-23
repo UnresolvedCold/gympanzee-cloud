@@ -24,20 +24,23 @@ var textLocal = {
 
 admin.initializeApp(firebaseConfig);
 
-//Call back requests
-exports.getCallbackRequests = functions.https.onRequest((req, res) => {
+//Get gym info
+exports.getGymInfo = functions.https.onRequest((req, res) => {
     cors(req, res, () => {     
 
         //option helps in switching between different modes in a function
         //option == "count"  --> will give the number of data requesting callbacks 
         //option == "data"   --> will get the data of all users in json   
         const option = req.query.option;
+        var filter = "";
+        filter = req.query.filter;
 
         return new Promise(function(resolve, reject)
         {     
             var data=[];
             var count=0;
 
+            //return details of a gym with the given id
             if(option=="uid")
             {
                 var uid = req.query.uid;
@@ -47,13 +50,36 @@ exports.getCallbackRequests = functions.https.onRequest((req, res) => {
                 .get()
                 .then(function(doc)
                 {
-                    res.send(JSON.stringify(doc.data()));   
+                    var data = doc.data();
+                    var date = data.date;
+                    var seconds = date._seconds;
+                    var nseconds = date._nanoseconds;
+                    var date= (new admin.firestore.Timestamp(seconds,nseconds)).toDate();
+
+                    date.setHours(date.getHours() + 5);
+                    date.setMinutes(date.getMinutes() + 30);
+
+                    var year    = ('00'+date.getFullYear());
+                    var month   = ('00'+date.getMonth());
+                    var day     = ('00'+date.getDay());
+                    var hour    = ('00'+date.getHours());
+                    var minute  = ('00'+date.getMinutes());
+
+                    var strDate = `${day}/${month}/${year} ${hour}-${minute}`;
+
+                    console.log(strDate);
+
+                    data.date = strDate;
+                
+                    res.send(JSON.stringify(data));   
                 });
             }
+
+            //
             else
             admin.firestore()       //get firestore reference
             .collection("gyms")     //get collection named "gyms"
-            .where("password", "==", "")  //filter documents with field password == ""
+            .where("registrationStatus", "==", filter)  //filter documents with field password == ""
             .get()
             .then(function(querySnapshot) 
             {
@@ -70,11 +96,36 @@ exports.getCallbackRequests = functions.https.onRequest((req, res) => {
                     //iterate through all the data present in the database
                     querySnapshot.forEach(function(doc) 
                     {
+                        //Get uid
                         var size = data.length;
                         data[size] = doc.data();
                         data[size]._uid_ = doc.id;
+                        
+                        //Generate Date obj from Timestamp
+                        var _date = data[size].date===undefined?{_seconds:0, _nanoseconds:0}:data[size].date;
+                        var seconds = _date._seconds;
+                        var nseconds = _date._nanoseconds;
+                        date= (new admin.firestore.Timestamp(seconds,nseconds)).toDate();
+
+                        date.setHours(date.getHours() + 5);
+                        date.setMinutes(date.getMinutes() + 30);
+
+                        var year    = ('00'+date.getFullYear()).slice(-4);
+                        var month   = ('00'+date.getMonth()+1).slice(-2);
+                        var day     = ('00'+date.getDate()).slice(-2);
+                        var hour    = ('00'+date.getHours()).slice(-2);
+                        var minute  = ('00'+date.getMinutes()).slice(-2);
+
+                        var strDate = `${day}/${month}/${year} ${hour}-${minute}`;
+
+                        console.log(strDate);
+
+                        //send appended data
+                        data[size].date = strDate;
                     
                     });
+
+
 
                     //send data
                      res.send(JSON.stringify(data));
@@ -100,7 +151,7 @@ exports.generateOTP = functions.https.onRequest((req, res) => {
 
         return new Promise(function(resolve, reject)
         {    
-            var rnd6 = Math.floor(100000 + Math.random() * 900000);
+            var rnd6 = Math.floor(100000 + Math.random() * 900000)+"";
             var msg = `Your OTP for Partner On-boarding process is ${rnd6}.\n\nKindly share it with our Representative.\nSender: Gympanzee.\nhttps://tx.gl/r/n0qG`; 
 
             //send it to a temp database
@@ -131,15 +182,18 @@ exports.addPartner = functions.https.onRequest((req, res) => {
     cors(req, res, () => {
 
         //flag == 144 => add partner
+        const refby=req.query.refby;
         const flag=req.query.flag;
         const otp = req.query.otp;
         const number = req.query.number;
         const username = req.query.username;
         const email = req.query.email;
         const name = req.query.name;
+        const _number_ = number.substring(2,number.length);
 
         return new Promise(function(resolve, reject)
         {    
+            console.log(flag + " "+ number + " " + "started ")
 
             admin.firestore()
             .collection("Temp").doc("OTP")
@@ -147,35 +201,98 @@ exports.addPartner = functions.https.onRequest((req, res) => {
             .get()
                 .then(function(doc)
                 {
-                    if(doc.otp == otp)
+                    console.log(doc.data())
+                    if(doc.data().otp == otp)
                     {
+                        var rnd6 = (Math.floor(100000 + Math.random() * 900000)) + "";
 
+                        console.log(`OTP matched ${doc.data().otp},${otp}`)
                         var _data = {
                             name: name,
-                            __stage__: "partnerAdded",
+                            registrationStatus: "partnerAdded",
                             username: username,
-                            password: "somepassword",
-                            phone: number,
-                            email: email
+                            password: rnd6+"",
+                            phone: _number_,
+                            email: email,
+                            unique_pin: rnd6,
+                            refby: refby===undefined?"":refby
                         }
 
                         if(flag !="144") 
                         {
-                            _data.__stage__ = "addedForApproval";
-                            _data.password="";
+                            _data.registrationStatus = "addedForApproval";
                         }
+                        console.log("data created "+_data)
+                        admin.firestore()
+                        .collection("gyms")
+                       // .where("registrationStatus","==","callbackSeen")
+                        .where("number","==",`${_number_}`)
+                        .get()
+                        .then(
+                            function(snap)
+                            {
+                                console.log("searching callbackseen requests")
+                                snap.forEach(function(doc) {
+                                    
+                                    //if(doc.data().registrationStatus == "callbackSeen")
+                                    {
+                                        console.log("found result")
+                                        const uid = doc.id;
+                                        const pin = doc.data().unique_pin;
+                                        admin.firestore().collection("gyms")
+                                              .doc(uid).update(_data)
+                                              .then(function()
+                                            {
+                                                // Check if flag == 144
+                                                // Send Username and password by calling 
+                                                // else do nothing
+                                                if(flag=='144')
+                                                {
+                                                    console.log("adding otp")
+                                                    var messageUrl = getMessageUrl(number,pin,_data.password,_data.username);
+                                                    request(messageUrl, function (error, response, body) {
+                                                        console.log('msg',msg);
+                                                        console.log('body:', body);
+                                                    
+                                                        res.send(_data);
+                                                    
+                                                    });
+                                            
+                                                }
+                                                res.send('error in sending data to user');
+                                               /* else
 
-                        admin.firestore().collection("gyms")
-                        .where("number", "==", number)
-                        .update(_data).then(function()
-                        {
-                            res.send('success');
+                                                if(flag !='144' && refby!=undefined)
+                                                admin.firestore().collection("Temp")
+                                                .doc("RequestedBy").collection("RefBy").doc(uid)
+                                                .set({refby: refby}).then
+                                                (function()
+                                                {
+                                                    console.log('msg',msg);
+                                                    console.log('body',body);
+                                                    res.send('success');
+                            
 
-                        });
+                                                })*/
+
+                                            });
+                                    }
+                                  /*  else
+                                    {
+                                        res.send('error : '+'partner has not been seen')
+                                    }*/
+
+                                });
+
+                                res.send('error : request not seen')
+                            }
+                        );
 
                     }  
                     else
                     {
+                        console.log(flag + " "+ number + " " + "error , "+otp+", "+doc.data().otp)
+
                         res.send('error');
                     } 
                 });   
@@ -193,7 +310,7 @@ exports.setGymStage = functions.https.onRequest((req, res) => {
 
         return new Promise(function(resolve, reject)
         {    
-            var _data = {RegistrationStatus: stage};
+            var _data = {registrationStatus: stage};
 
             admin.firestore().collection("gyms")
             .doc(uid)
@@ -208,3 +325,116 @@ exports.setGymStage = functions.https.onRequest((req, res) => {
         });
     });      
 });
+
+//check user name already exist in database
+exports.validateUsername = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {
+
+        const username=req.query.username;
+
+        return new Promise(function(resolve, reject)
+        {    
+
+            admin.firestore()
+            .collection("gyms")
+            .where("username","==",username)
+            .get()
+            .then(function(querySnapshot) 
+            {
+                if(querySnapshot.empty)
+                res.send("valid");
+                else
+                res.send("alreadytaken");
+            });
+
+
+        });
+    });      
+});
+
+//approval
+exports.addPartnerAfterApproval = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {
+        const uid = req.query.uid;
+        admin.firestore()       //get firestore reference
+        .collection("gyms")     //get collection named "gyms"
+        .doc(uid)
+        .get()
+        .then(function(doc) 
+        {
+            const mob = doc.data().number;
+            const pin = doc.data().unique_pin;
+            const pass = doc.data().password;
+            const usrnm = doc.data().username;
+
+            var _data = {registrationStatus: "partnerAdded"};
+
+            admin.firestore().collection("gyms")
+            .doc(uid)
+            .update(_data)
+            .then(function() {
+                var url = getMessageUrl(`91${mob}`,pin,pass,usrnm);
+                request(url, function (error, response, body) {
+                    console.log('msg',msg);
+                    console.log('body:', body);
+                 
+                    res.send(_data);
+                   
+                });
+               
+            })
+            ;
+           
+
+
+            res.send("added");
+        });
+          
+    });      
+});
+
+exports.rejectApprovalRequest = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {
+        const uid = req.query.uid;
+        admin.firestore()
+        .collection("gyms").doc(uid)
+        .delete().then(function() {
+            res.send("deleted");
+         
+        }).catch(function(error) {
+            res.send("error");
+
+        });
+    });      
+});
+
+exports.checksms = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {
+        const mob = "7004219327";
+        const pin ="100000";
+        const pass="098989";
+        const usrnm = "ShubhamKumar";
+
+        var obj = getMessageUrl(`91${mob}`,pin,pass,usrnm);
+        var url = obj.url;
+        var msg = obj.msg;
+
+                request(url, function (error, response, body) {
+                    console.log(msg);
+                    console.log( body);
+                 
+                    res.send(body);
+                   
+                });
+    });      
+});
+
+function getMessageUrl(mob,pin,pass,usrnm)
+{
+    var msg = String.raw`Congratulations! Your GympanzeeClub account has been approved. Your Partner's Identification Number (PIN) is ${pin}%nPlease use this PIN for all future communications.%nLogin to GympanzeeClub Android app using the following credentials:%nUsername: ${usrnm}%nPassword: ${pass}%nPlease change your password immediately following your first login.%n Do not share this message with anyone.%nYou are just one-step away from DOUBLING your BUSINESS.%nContact our representative to list your fitness club on the Gympanzee platform.`
+    
+    var url = encodeURI(
+        `https://api.textlocal.in/send/?apikey=${textLocal.apiKey}&numbers=${mob}&sender=${textLocal.sender}&message=${msg}`
+        );
+        return {url:url,msg:msg};
+}
