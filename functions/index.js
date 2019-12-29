@@ -51,7 +51,7 @@ exports.getGymInfo = functions.https.onRequest((req, res) => {
                 .then(function(doc)
                 {
                     var data = doc.data();
-                    var date = data.date;
+                    var date = data.date==undefined?{_seconds:0, _nanoseconds:0}:data.date;
                     var seconds = date._seconds;
                     var nseconds = date._nanoseconds;
                     var date= (new admin.firestore.Timestamp(seconds,nseconds)).toDate();
@@ -59,11 +59,11 @@ exports.getGymInfo = functions.https.onRequest((req, res) => {
                     date.setHours(date.getHours() + 5);
                     date.setMinutes(date.getMinutes() + 30);
 
-                    var year    = ('00'+date.getFullYear());
-                    var month   = ('00'+date.getMonth());
-                    var day     = ('00'+date.getDay());
-                    var hour    = ('00'+date.getHours());
-                    var minute  = ('00'+date.getMinutes());
+                    var year    = ('00'+date.getFullYear()).slice(-4);
+                    var month   = ('00'+date.getMonth()).slice(-2);
+                    var day     = ('00'+date.getDay()).slice(-2);
+                    var hour    = ('00'+date.getHours()).slice(-2);
+                    var minute  = ('00'+date.getMinutes()).slice(-2);
 
                     var strDate = `${day}/${month}/${year} ${hour}:${minute}`;
 
@@ -152,17 +152,18 @@ exports.generateOTP = functions.https.onRequest((req, res) => {
         return new Promise(function(resolve, reject)
         {    
             var rnd6 = Math.floor(100000 + Math.random() * 900000)+"";
-            var msg = `Your OTP for Partner On-boarding process is ${rnd6}.\n\nKindly share it with our Representative.\nSender: Gympanzee.\nhttps://tx.gl/r/n0qG`; 
+            var msg = `Your OTP for Gympanzee Partner On-boarding process is ${rnd6}.\n\nKindly share it with our Representative.\nOTP valid for 10 minutes.`; 
 
             //send it to a temp database
             admin.firestore()
             .collection("Temp").doc("OTP")
             .collection("NewPartner").doc(username)
             .set({
-                otp: `${rnd6}`
+                otp: `${rnd6}`,
+                number:`${number}`
             })
             
-            var url = `https://api.textlocal.in/send/?apikey=${textLocal.apiKey}&numbers=${number}&sender=${textLocal.sender}&message=${msg}`;
+            var url =encodeURI(`https://api.textlocal.in/send/?apikey=${textLocal.apiKey}&numbers=${number}&sender=${textLocal.sender}&message=${msg}`);
 
             request(url, function (error, response, body) {
                 console.log('msg',msg);
@@ -220,9 +221,10 @@ exports.addPartner = functions.https.onRequest((req, res) => {
 
                         if(flag !="144") 
                         {
+                            console.log('flag = 144');
                             _data.registrationStatus = "addedForApproval";
                         }
-                        console.log("data created "+_data)
+                        console.log("data created "+JSON.stringify(_data))
                         admin.firestore()
                         .collection("gyms")
                        // .where("registrationStatus","==","callbackSeen")
@@ -231,7 +233,8 @@ exports.addPartner = functions.https.onRequest((req, res) => {
                         .then(
                             function(snap)
                             {
-                                console.log("searching callbackseen requests")
+                                console.log("searching callbackseen requests : "+snap.size)
+                               
                                 snap.forEach(function(doc) {
                                     
                                     //if(doc.data().registrationStatus == "callbackSeen")
@@ -240,8 +243,8 @@ exports.addPartner = functions.https.onRequest((req, res) => {
                                         const uid = doc.id;
                                         const pin = doc.data().unique_pin;
                                         admin.firestore().collection("gyms")
-                                              .doc(uid).update(_data)
-                                              .then(function()
+                                            .doc(uid).update(_data)
+                                            .then(function()
                                             {
                                                 // Check if flag == 144
                                                 // Send Username and password by calling 
@@ -251,7 +254,7 @@ exports.addPartner = functions.https.onRequest((req, res) => {
                                                     console.log("adding otp")
                                                     var messageUrl = getMessageUrl(number,pin,_data.password,_data.username);
                                                     request(messageUrl, function (error, response, body) {
-                                                        console.log('msg',msg);
+                                                       // console.log('msg',msg);
                                                         console.log('body:', body);
                                                     
                                                         res.send(_data);
@@ -259,41 +262,29 @@ exports.addPartner = functions.https.onRequest((req, res) => {
                                                     });
                                             
                                                 }
-                                                res.send('error in sending data to user');
-                                               /* else
-
-                                                if(flag !='144' && refby!=undefined)
-                                                admin.firestore().collection("Temp")
-                                                .doc("RequestedBy").collection("RefBy").doc(uid)
-                                                .set({refby: refby}).then
-                                                (function()
-                                                {
-                                                    console.log('msg',msg);
-                                                    console.log('body',body);
-                                                    res.send('success');
-                            
-
-                                                })*/
-
+                                            
                                             });
                                     }
-                                  /*  else
-                                    {
-                                        res.send('error : '+'partner has not been seen')
-                                    }*/
 
                                 });
-
-                                res.send('error : request not seen')
+                                if(snap.size<=0){
+                                console.log("No nmber matched");
+                                res.send('No number matched');
+                                }
                             }
-                        );
+                        )
+                        .catch(function(error) {
+                            console.log("Error getting documents: ", error);
+                            res.send('error 1');
+
+                           });;
 
                     }  
                     else
                     {
                         console.log(flag + " "+ number + " " + "error , "+otp+", "+doc.data().otp)
 
-                        res.send('error');
+                        res.send('error 2');
                     } 
                 });   
 
@@ -476,7 +467,7 @@ exports.NotificationsHandler = functions.firestore
             isSeen: false
         }
 
-        admin.firestore().collection("Notifications")
+        return admin.firestore().collection("Notifications")
         .add(values)
         .then(function()
       {
@@ -518,12 +509,15 @@ exports.getNotifications = functions.https.onRequest((req, res) => {
                     querySnapshot.forEach(function(doc) 
                     {
                         //Get Notofication uid
-                        var size = data.length;
-                        data[size] = doc.data();
-                        data[size].notificationId = doc.id;
+                        if(doc.data().comment.length>0)
+                        {
+                            var size = data.length;
+                            data[size] = doc.data();
+                            data[size].notificationId = doc.id;
 
-                        if(data[size].isSeen==false)
-                        _count_++;
+                            if(data[size].isSeen==false)
+                            _count_++;
+                        }
                     
                     });
 
@@ -563,6 +557,71 @@ exports.touchNotification = functions.https.onRequest((req, res) => {
                 console.log('Notification Id : uid is seen')
                 res.send('seen');
             });
+
+        });
+    });      
+});
+
+exports.AllowAccount = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {     
+        
+        var value = req.query.value; //yes => activate account, no => block account
+        //any one of these
+        var uid = req.query.uid;
+        var mobile = req.query.mobile;
+        var unique_pin = req.query.unique_pin;
+        uid = uid==undefined?'':uid;
+        mobile = mobile==undefined?'':mobile;
+        unique_pin = unique_pin==undefined?'':unique_pin;
+
+        return new Promise(function(resolve, reject)
+        {     
+            if(uid.length>1)
+            admin.firestore()       //get firestore reference
+            .collection("gyms")  
+            .doc(uid)
+            .update({block:value})
+            .then(function(querySnapshot) 
+            {
+                console.log('result :'+value);
+                res.send('result :'+value);
+            });
+            else if (mobile.length>1)
+            admin.firestore()       //get firestore reference
+            .collection("gyms")     //get collection named "gyms"
+            .where("number", "==", mobile)  //filter documents with field password == ""
+            .get()
+            .then(function(querySnapshot) 
+            {querySnapshot.forEach(function(doc) {
+                admin.firestore()       //get firestore reference
+                .collection("gyms")  
+                .doc(doc.id)
+                .update({block:value})
+                .then(function(querySnapshot) 
+                {
+                    console.log('result :'+value);
+                    res.send('result :'+value);
+                });
+            });
+        });
+        else if (unique_pin.length>1)
+            admin.firestore()       //get firestore reference
+            .collection("gyms")     //get collection named "gyms"
+            .where("unique_pin", "==", unique_pin)  //filter documents with field password == ""
+            .get()
+            .then(function(querySnapshot) 
+            {querySnapshot.forEach(function(doc) {
+                admin.firestore()       //get firestore reference
+                .collection("gyms")  
+                .doc(doc.id)
+                .update({block:value})
+                .then(function(querySnapshot) 
+                {
+                    console.log('result :'+value);
+                    res.send('result :'+value);
+                });
+            });
+        });
 
         });
     });      
