@@ -60,7 +60,7 @@ exports.getGymInfo = functions.https.onRequest((req, res) => {
                     date.setMinutes(date.getMinutes() + 30);
 
                     var year    = ('00'+date.getFullYear()).slice(-4);
-                    var month   = ('00'+date.getMonth()).slice(-2);
+                    var month   = ('00'+(date.getMonth()+1)).slice(-2);
                     var day     = ('00'+date.getDay()).slice(-2);
                     var hour    = ('00'+date.getHours()).slice(-2);
                     var minute  = ('00'+date.getMinutes()).slice(-2);
@@ -88,7 +88,7 @@ exports.getGymInfo = functions.https.onRequest((req, res) => {
                     count = querySnapshot.size;
 
                     //send data
-                    res.send(count+'');
+                    res.send(JSON.stringify({nPartners:count+''}));
                 }
                 else if (option == "data" || option == null || option =="")
                 {
@@ -190,103 +190,148 @@ exports.addPartner = functions.https.onRequest((req, res) => {
         const username = req.query.username;
         const email = req.query.email;
         const name = req.query.name;
-        const _number_ = number.substring(2,number.length);
+        const city = req.query.city;
+        const _number_ = number.substring(2,number.length);//remove 91 from the number
 
         return new Promise(function(resolve, reject)
         {    
             console.log(flag + " "+ number + " " + "started ")
 
             admin.firestore()
-            .collection("Temp").doc("OTP")
-            .collection("NewPartner").doc(username)
+            .collection("gyms")
+            .where("registrationStatus","==","partnerAdded")
             .get()
-                .then(function(doc)
-                {
-                    console.log(doc.data())
-                    if(doc.data().otp == otp)
+            .then(function (__snap)
+            {
+                var count = __snap.size+1;
+                count = ('00000000'+count).slice(-6);
+
+                admin.firestore()
+                .collection("Temp").doc("OTP")
+                .collection("NewPartner").doc(username)
+                .get()
+                    .then(function(doc)
                     {
-                        var rnd6 = (Math.floor(100000 + Math.random() * 900000)) + "";
-
-                        console.log(`OTP matched ${doc.data().otp},${otp}`)
-                        var _data = {
-                            name: name,
-                            registrationStatus: "partnerAdded",
-                            username: username,
-                            password: rnd6+"",
-                            phone: _number_,
-                            email: email,
-                            unique_pin: rnd6,
-                            refby: refby===undefined?"":refby
-                        }
-
-                        if(flag !="144") 
+                        console.log(doc.data())
+                        if(doc.data().otp == otp)
                         {
-                            console.log('flag = 144');
-                            _data.registrationStatus = "addedForApproval";
-                        }
-                        console.log("data created "+JSON.stringify(_data))
-                        admin.firestore()
-                        .collection("gyms")
-                       // .where("registrationStatus","==","callbackSeen")
-                        .where("number","==",`${_number_}`)
-                        .get()
-                        .then(
-                            function(snap)
-                            {
-                                console.log("searching callbackseen requests : "+snap.size)
-                               
-                                snap.forEach(function(doc) {
-                                    
-                                    //if(doc.data().registrationStatus == "callbackSeen")
-                                    {
-                                        console.log("found result")
-                                        const uid = doc.id;
-                                        const pin = doc.data().unique_pin;
-                                        admin.firestore().collection("gyms")
-                                            .doc(uid).update(_data)
-                                            .then(function()
-                                            {
-                                                // Check if flag == 144
-                                                // Send Username and password by calling 
-                                                // else do nothing
-                                                if(flag=='144')
-                                                {
-                                                    console.log("adding otp")
-                                                    var messageUrl = getMessageUrl(number,pin,_data.password,_data.username);
-                                                    request(messageUrl, function (error, response, body) {
-                                                       // console.log('msg',msg);
-                                                        console.log('body:', body);
-                                                    
-                                                        res.send(_data);
-                                                    
-                                                    });
-                                            
-                                                }
-                                            
-                                            });
-                                    }
+                            var rnd6 = (Math.floor(100000 + Math.random() * 900000)) + "";
 
-                                });
-                                if(snap.size<=0){
-                                console.log("No nmber matched");
-                                res.send('No number matched');
-                                }
+                            console.log(`OTP matched ${doc.data().otp},${otp}`)
+                            var _data = {
+                                name: name,
+                                registrationStatus: "partnerAdded",
+                                username: username,
+                                password: rnd6+"",
+                                phone: _number_,
+                                number: _number_,
+                                email: email,
+                                unique_pin: count,
+                                refby: refby===undefined?"":refby,
+                                sendsmscount:2,
+                                account_holder:"",
+                                account_no:"",
+                                address: "",
+                                callme: "",
+                                date: admin.firestore.Timestamp.now(),
+                                gstin:"",
+                                gym_name:"",
+                                i_am:"",
+                                ifsc:"",
+                                its_on:"",
+                                pan:"",
+                                payment:"",
+                                pincode:"",
+                                state:"",
+                                status:"",
+                                city:city
+
                             }
-                        )
-                        .catch(function(error) {
-                            console.log("Error getting documents: ", error);
-                            res.send('error 1');
 
-                           });;
+                            if(flag !="144") 
+                            {
+                                console.log('flag = 144');
+                                _data.registrationStatus = "addedForApproval";
+                            }
+                            console.log("data created "+JSON.stringify(_data))
+                            admin.firestore()
+                            .collection("gyms")
+                            .where("registrationStatus","==","callbackSeen")
+                            .where("number","==",`${_number_}`)
+                            .get()
+                            .then(
+                                function(snap)
+                                {
+                                    //console.log("searching callbackseen requests : "+snap.size)
+                                
+                                   // snap.forEach(function(doc) {
+                                        
+                                       // if(doc.data().registrationStatus != "partnerAdded")
+                                       // {
+                                            //console.log("found result")
+                                            //const uid = doc.id;
+                                            if(snap.size<1)
+                                            admin.firestore().collection("gyms")
+                                                .add(_data)
+                                                .then(function()
+                                                {
+                                                    // Check if flag == 144
+                                                    // Send Username and password by calling 
+                                                    // else do nothing
+                                                    if(flag=='144')
+                                                    {
+                                                        console.log("adding otp")
+                                                        var messageUrl = getMessageUrl(number+'',count+'',_data.password+'',_data.username+'');
+                                                        request(messageUrl, function (error, response, body) {
+                                                        // console.log('msg',msg);
+                                                        console.log('messageURL:',messageUrl);    
+                                                        console.log('body:', body);
 
-                    }  
-                    else
-                    {
-                        console.log(flag + " "+ number + " " + "error , "+otp+", "+doc.data().otp)
+                                                            
+                                                            _data._body_=body;
+                                                            res.send(_data);
+                                                            
+                                                        });
+                                                
+                                                    }
+                                                    else
+                                                    {
+                                                        res.send(_data);
+                                                    }
+                                                
+                                                });
+                                            else
+                                            {
+                                                res.send("failure");
+                                            }
+                                        //}
+                                       // else
+                                      //  {
+                                       //     res.send("failure");
+                                       // }
 
-                        res.send('error 2');
-                    } 
-                });   
+                                    });
+                                  /*  if(snap.size<=0){
+                                    console.log("No number matched");
+                                    res.send('No number matched');
+                                    }*/
+                               /* }
+                            )
+                            .catch(function(error) {
+                                console.log("Error getting documents: ", error);
+                                res.send('error 1');
+
+                            });;*/
+
+                        }  
+                        else
+                        {
+                            console.log(flag + " "+ number + " " + "error , "+otp+", "+doc.data().otp)
+
+                            res.send('error 2');
+                        } 
+                    });
+            });
 
         });
     });      
@@ -347,39 +392,47 @@ exports.validateUsername = functions.https.onRequest((req, res) => {
 exports.addPartnerAfterApproval = functions.https.onRequest((req, res) => {
     cors(req, res, () => {
         const uid = req.query.uid;
-        admin.firestore()       //get firestore reference
-        .collection("gyms")     //get collection named "gyms"
-        .doc(uid)
-        .get()
-        .then(function(doc) 
-        {
-            const mob = doc.data().number;
-            const pin = doc.data().unique_pin;
-            const pass = doc.data().password;
-            const usrnm = doc.data().username;
 
-            var _data = {registrationStatus: "partnerAdded"};
+        admin.firestore()
+            .collection("gyms")
+            .where("registrationStatus","==","partnerAdded")
+            .get()
+            .then(function (__snap)
+            {
+                var count = __snap.size+1;
+                count = ('00000000'+count).slice(-6);
+                admin.firestore()       //get firestore reference
+                .collection("gyms")     //get collection named "gyms"
+                .doc(uid)
+                .get()
+                .then(function(doc) 
+                {
+                    const mob = doc.data().number;
+                    const pin = doc.data().unique_pin;
+                    const pass = doc.data().password;
+                    const usrnm = doc.data().username;
 
-            admin.firestore().collection("gyms")
-            .doc(uid)
-            .update(_data)
-            .then(function() {
-                var url = getMessageUrl(`91${mob}`,pin,pass,usrnm);
-                request(url, function (error, response, body) {
-                    console.log('msg',msg);
-                    console.log('body:', body);
-                 
-                    res.send(_data);
-                   
+                    var _data = {registrationStatus: "partnerAdded",unique_pin: count};
+
+                    admin.firestore().collection("gyms")
+                    .doc(uid)
+                    .update(_data)
+                    .then(function() {
+                        var url = getMessageUrl(`91${mob}`,pin,pass,usrnm);
+                        request(url, function (error, response, body) {
+                            console.log('msg',msg);
+                            console.log('body:', body);
+                        
+                            _data._body_=body;
+                            res.send(_data);
+                        
+                        });
+                    
+                    });
+
+                    res.send("added");
                 });
-               
-            })
-            ;
-           
-
-
-            res.send("added");
-        });
+            });
           
     });      
 });
@@ -396,6 +449,49 @@ exports.rejectApprovalRequest = functions.https.onRequest((req, res) => {
             res.send("error");
 
         });
+    });      
+});
+
+//Remove Account
+exports.removeAccount = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {
+        const uid = req.query.uid;
+        const mobile = req.query.mobile;
+        const state = req.query.state;
+
+        console.log(`mob= ${mobile} state: ${state}`)
+        if(state == 'remove')
+        {
+            admin.firestore()
+            .collection("gyms").doc(uid)
+            .delete().then(function() {
+
+                //send sms
+                var msg = `Dear Gympanzee Partner,\n`+
+                            `Your account has been permanently removed.\n`+
+                            `If it was a mistake, contact our team immediately to reactivate. You can also write to us at support@gympanzee.app`;
+                
+                var url = `https://api.textlocal.in/send/?apikey=${textLocal.apiKey}&numbers=91${mobile}&sender=${textLocal.sender}&message=${msg}`
+                request(url, function (error, response, body) {
+                    
+                    console.log(`mob: ${mobile} uid: ${uid}`);
+                    console.log(msg);
+                    console.log( body);
+                 
+                    res.send("deleted");
+                   
+                });
+
+            }).catch(function(error) {
+                res.send("error 1");
+    
+            });
+        }
+        else
+        {
+            res.send('error 2')
+        }
+       
     });      
 });
 
@@ -422,11 +518,11 @@ exports.checksms = functions.https.onRequest((req, res) => {
 
 function getMessageUrl(mob,pin,pass,usrnm)
 {
-    var msg = String.raw`Congratulations! Your GympanzeeClub account has been approved. Your Partner's Identification Number (PIN) is ${pin}%nPlease use this PIN for all future communications.%nLogin to GympanzeeClub Android app using the following credentials:%nUsername: ${usrnm}%nPassword: ${pass}%nPlease change your password immediately following your first login.%n Do not share this message with anyone.%nYou are just one-step away from DOUBLING your BUSINESS.%nContact our representative to list your fitness club on the Gympanzee platform.`
-    
-    var url = encodeURI(
+    var msg = `Congratulations! Your GympanzeeClub account has been approved. Your Partner's Identification Number (PIN) is ${pin}%nPlease use this PIN for all future communications.%nLogin to GympanzeeClub Android app using the following credentials:%nUsername: ${usrnm}%nPassword: ${pass}%nPlease change your password immediately following your first login.%n Do not share this message with anyone.%nYou are just one-step away from DOUBLING your BUSINESS.%nContact our representative to list your fitness club on the Gympanzee platform.`
+     msg = `Congratulations! Your GympanzeeClub account has been approved. Your Partner's Identification Number (PIN) is ${pin}\nPlease use this PIN for all future communications.\nLogin to GympanzeeClub Android app using the following credentials:\nUsername: ${usrnm}\nPassword: ${pass}\nPlease change your password immediately following your first login.\n Do not share this message with anyone.\nYou are just one-step away from DOUBLING your BUSINESS.\nContact our representative to list your fitness club on the Gympanzee platform.`
+    var url = 
         `https://api.textlocal.in/send/?apikey=${textLocal.apiKey}&numbers=${mob}&sender=${textLocal.sender}&message=${msg}`
-        );
+    
         return {url:url,msg:msg};
 }
 
@@ -583,46 +679,202 @@ exports.AllowAccount = functions.https.onRequest((req, res) => {
             .update({block:value})
             .then(function(querySnapshot) 
             {
+                var msg = '';
+                if(value=='yes')
+                {
+                msg = `Dear Gympanzee Partner,\n`+
+                `Your account has been temporarily blocked.\n`+
+                `Contact our team to reactivate. You can also write to us at support@gympanzee.app`;
+                
+                var url = `https://api.textlocal.in/send/?apikey=${textLocal.apiKey}&numbers=91${mobile}&sender=${textLocal.sender}&message=${msg}`
+                request(url, function (error, response, body) {
+                    
+                    console.log(`mob: ${mobile} uid: ${uid}`);
+                    console.log(msg);
+                    console.log( body);
+                 
+                    res.send(body);
+                   
+                });
+
+                }
+                else
+                {
                 console.log('result :'+value);
                 res.send('result :'+value);
+                }
             });
-            else if (mobile.length>1)
-            admin.firestore()       //get firestore reference
-            .collection("gyms")     //get collection named "gyms"
-            .where("number", "==", mobile)  //filter documents with field password == ""
-            .get()
-            .then(function(querySnapshot) 
-            {querySnapshot.forEach(function(doc) {
-                admin.firestore()       //get firestore reference
-                .collection("gyms")  
-                .doc(doc.id)
-                .update({block:value})
-                .then(function(querySnapshot) 
-                {
-                    console.log('result :'+value);
-                    res.send('result :'+value);
-                });
-            });
-        });
-        else if (unique_pin.length>1)
-            admin.firestore()       //get firestore reference
-            .collection("gyms")     //get collection named "gyms"
-            .where("unique_pin", "==", unique_pin)  //filter documents with field password == ""
-            .get()
-            .then(function(querySnapshot) 
-            {querySnapshot.forEach(function(doc) {
-                admin.firestore()       //get firestore reference
-                .collection("gyms")  
-                .doc(doc.id)
-                .update({block:value})
-                .then(function(querySnapshot) 
-                {
-                    console.log('result :'+value);
-                    res.send('result :'+value);
-                });
-            });
-        });
-
+           
         });
     });      
 });
+
+exports.getMisc = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {    
+                
+        return new Promise(function(resolve, reject)
+        {    
+            var now = Date.now();
+            var nowObject = new Date(now);
+
+            var beginObject = new Date(nowObject.getFullYear(),nowObject.getMonth()-1,1,0,0,0,0);
+            var endObject = new Date(nowObject.getFullYear(),nowObject.getMonth(),1,0,0,0,0)
+            admin.firestore()
+            .collection("gyms")
+                .where('registrationStatus','==','partnerAdded')
+                .where('date', '>=', beginObject)
+                .where('date','<', endObject )
+                .get()
+                .then(function(begin) 
+                {
+                    console.log(begin.size);                
+                    
+                    admin.firestore()
+                    .collection("gyms")
+                        .where('registrationStatus','==','partnerAdded')
+                        .where('date', '>=', endObject)
+                        .where('date','<=',nowObject)
+                        .get()
+                        .then(function(end) 
+                        {
+                            var per_nPartner = begin.size!=0? Math.round(((end.size)/begin.size)*10000)/100:100;
+                            
+                            var res_data = {
+                                nPartner_prevMonth:begin.size,
+                                nPartner_thisMonth:end.size,
+                                per_nPartner: per_nPartner,
+                                per_nPartner_nosign: Math.abs(per_nPartner),
+                                per_nPartner_sign:Math.sign(per_nPartner),
+                                per_nPartner_style: Math.sign(per_nPartner)==-1?'fas fa-arrow-down':Math.sign(per_nPartner)==0?'':'fa fa-arrow-up',
+                                per_nPartner_style1: Math.sign(per_nPartner)==-1?'fas fa-angle-down':Math.sign(per_nPartner)==0?'':'fas fa-angle-up'
+                            }
+                            console.log(end.size)
+                            res.send(JSON.stringify(res_data))
+                        
+                        });
+                
+                }); 
+        
+           
+        });
+    });      
+});
+
+exports.getEditorData = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {   
+        
+        var editorIdentifier = req.query.editor;
+                
+        return new Promise(function(resolve, reject)
+        {    
+            admin.firestore()
+            .collection("gyms")
+                .where('registrationStatus','==','partnerAdded')
+                .where('refby','==',editorIdentifier)
+                .get()
+                .then(function(snap_added) 
+                {
+                    admin.firestore()
+                    .collection("gyms")
+                        .where('registrationStatus','==','addedForApproval')
+                        .where('refby','==',editorIdentifier)
+                        .get()
+                        .then(function(snap_approval) 
+                        {
+                            var res_data=
+                            {
+                                nPartnerAdded: snap_added.size,
+                                nPartnerApproval: snap_approval.size
+                            }
+
+                            res.send(JSON.stringify(res_data));
+                            
+                        
+                        });
+                
+                }); 
+        
+           
+        });
+    });      
+});
+
+exports.getEditorDataList = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {   
+        
+        var editorIdentifier = req.query.editor; //name or other identifier as per the database
+       // var filter = req.query.filter; //registration status
+        var max = req.query.max==undefined?20000:req.query.max; //limit to no of data        
+        return new Promise(function(resolve, reject)
+        {    
+            admin.firestore()
+            .collection("gyms")
+               // .where('registrationStatus','==',filter)
+                .where('refby','==',editorIdentifier)
+                .get()
+                .then(function(snap) 
+                {
+                    var data =[];
+                    snap.forEach(function(doc) 
+                    {
+                        var size = data.length;
+                        data[size] = doc.data();
+                        data[size].id = doc.id;
+                        //make date string
+                        var _date = data[size].date===undefined?{_seconds:0, _nanoseconds:0}:data[size].date;
+                        var seconds = _date._seconds;
+                        var nseconds = _date._nanoseconds;
+                        date= (new admin.firestore.Timestamp(seconds,nseconds)).toDate();
+
+                        date.setHours(date.getHours() + 5);
+                        date.setMinutes(date.getMinutes() + 30);
+
+                        var year    = ('00'+date.getFullYear()).slice(-4);
+                        var month   = ('00'+date.getMonth()+1).slice(-2);
+                        var day     = ('00'+date.getDate()).slice(-2);
+                        var hour    = ('00'+date.getHours()).slice(-2);
+                        var minute  = ('00'+date.getMinutes()).slice(-2);
+
+                        var strDate = `${day}/${month}/${year} ${hour}:${minute}`;
+
+                        data[size].date = strDate;
+
+                        var rs = data[size].registrationStatus;
+                        if(rs=='partnerAdded')rs='Approved';
+                        if(rs=='addedForApproval')rs='Pending Approval';
+
+                        data[size].registrationStatus=rs;
+                        //console.log('cron says '+doc.id);
+                
+                    });
+
+                    //send data to client here
+                    res.send(JSON.stringify(data));
+                
+                }); 
+        
+           
+        });
+    });      
+});
+
+//CRON Jobs
+/*
+exports.scheduledFunctionCrontab = functions.pubsub.schedule('* * * * *')
+  .onRun((context) => {
+    return new Promise(function(resolve, reject)
+    {   
+        admin.firestore()
+        .collection("gyms")
+        .where("registrationStatus","==","partnerAdded")
+        .get()
+        .then(function (__snap)
+        {
+            __snap.forEach(function(doc) 
+            {
+                console.log('cron says '+doc.id);
+            });
+        })
+    });
+});
+*/
