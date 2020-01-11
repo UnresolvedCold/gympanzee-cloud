@@ -13,110 +13,156 @@ const firebaseConfig = {
     appId: "1:629024763027:web:f2e4e723bb7cfeef93f166"
   };
 
+//must be var as will change sometimes during execution  
 var textLocal = {
     apiKey: "+Hc2/CYYkCY-WBtwCqLXtGUkH9aIu04FhXYy5chlpr",
     sender: "GPNZEE"
 }   
 
 admin.initializeApp(firebaseConfig);
-//CRON Jobs
-/*
-exports.scheduledFunctionCrontab = functions.pubsub.schedule('* * * * *')
-  .onRun((context) => {
+
+var clubRoot =  admin.firestore();//.collection("Clubs");
+exports.addClub = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {
+
+    //Data required for database
+   const name=req.query.name;
+   const address = req.query.address;
+   const city = req.query.city;
+   const phone = req.query.phone;
+   const workingDays = req.query.workingDays;
+   const workingHours = req.query.workingHours;
+   const plan = req.query.plan;
+   const amenities = req.query.amenities;
+   const gumasta = req.query.gumasta;
+   const GSTCertificate = req.query.GSTCertificate;
+   const PAN = req.query.PAN;
+   const Aadhar = req.query.Aadhar;
+   const billingACname = req.query.billingACname;
+   const billingACNumber = req.query.billingACNumber;
+   const IFSC = req.query.IFSC;
+   const GSTIN = req.query.GSTIN;
+   const billingPAN = req.query.billingPAN;
+   const billingPhone = req.query.billingPhone;
+   const billingAddress = req.query.billingAddress;
+   const state = req.query.state;
+   const lat = req.query.lat;
+   const lon = req.query.lon; 
+
+   //Flags
+   const shouldAdd = req.query.shouldAdd;   // ==144 add directly else send for approval
+
+   //Data for identifying an account
+    const username = req.query.username; 
+
+    //Data json to push
+    const dataJSON = 
+    {
+        amenities: amenities==undefined?"":amenities,
+        city:city==undefined?"":city,
+        gym_name:name==undefined?"":name,
+        gymlatitude:lat==undefined?"":lat,
+        gymlongitude:lon==undefined?"":lon,
+        id: "to be implemented",
+        location: address==undefined?"":address,
+        month_tokens: "",
+        number: phone==undefined?"":phone,
+        plans: plan==undefined?"":plan,
+        token: "",
+        uri: gumasta==undefined?"":gumasta+" "
+            +GSTCertificate==undefined?"":GSTCertificate+" "
+            +PAN==undefined?"":PAN+" "
+            +Aadhar==undefined?"":Aadhar,
+        week_tikens: "",
+        working_days: workingDays==undefined?"":workingDays,
+        working_hours: workingHours==undefined?"":workingHours,
+        year_tokens: "",
+        billing_AC_number: billingACNumber==undefined?"":billingACNumber,
+        billing_name: billingACname==undefined?"":billingACname,
+        billing_address: billingAddress==undefined?"":billingAddress,
+        billing_PAN: billingPAN==undefined?"":billingPAN,
+        billing_Phone: billingPhone==undefined?"":billingPhone,
+        IFSC:IFSC==undefined?"":IFSC,
+        billing_state: state==undefined?"":state,
+        GSTIN : GSTIN==undefined?"":GSTIN
+    }
+
     return new Promise(function(resolve, reject)
-    {   
-        admin.firestore()
-        .collection("gyms")
-        .where("registrationStatus","==","partnerAdded")
-        .get()
-        .then(function (__snap)
-        {
-            __snap.forEach(function(doc) 
-            {
-                console.log('cron says '+doc.id);
-            });
-        })
-    });
-});
-*/
-//Get gym info
-exports.getGymInfo = functions.https.onRequest((req, res) => {
-    cors(req, res, () => {     
-
-        //option helps in switching between different modes in a function
-        //option == "count"  --> will give the number of data requesting callbacks 
-        //option == "data"   --> will get the data of all users in json   
-        const option = req.query.option;
-        var filter = "";
-        filter = req.query.filter;
-
-        return new Promise(function(resolve, reject)
-        {     
-            var data=[];
-            var count=0;
-
-            //return details of a gym with the given id
-            if(option=="uid")
-            {
-                var uid = req.query.uid;
-                admin.firestore()       //get firestore reference
-                .collection("gyms")     //get collection named "gyms"
-                .doc(uid)
-                .get()
-                .then(function(doc)
+        {    
+            //clubRoot.doc("Partner Clubs").collection(username)
+            clubRoot.collection(username)
+            .add(dataJSON)
+            .then(
+                function()
                 {
-                    var data = doc.data();
-                    var date = data.date==undefined?{_seconds:0, _nanoseconds:0}:data.date;
-                    var seconds = date._seconds;
-                    var nseconds = date._nanoseconds;
-                    var date= (new admin.firestore.Timestamp(seconds,nseconds)).toDate();
-
-                    date.setHours(date.getHours() + 5);
-                    date.setMinutes(date.getMinutes() + 30);
-
-                    var year    = ('00'+date.getFullYear()).slice(-4);
-                    var month   = ('00'+(date.getMonth()+1)).slice(-2);
-                    var day     = ('00'+date.getDay()).slice(-2);
-                    var hour    = ('00'+date.getHours()).slice(-2);
-                    var minute  = ('00'+date.getMinutes()).slice(-2);
-
-                    var strDate = `${day}/${month}/${year} ${hour}:${minute}`;
-
-                    console.log(strDate);
-
-                    data.date = strDate;
-                
-                    res.send(JSON.stringify(data));   
-                });
-            }
-
-            //
-            else
-            admin.firestore()       //get firestore reference
-            .collection("gyms")     //get collection named "gyms"
-            .where("registrationStatus", "==", filter)  //filter documents with field password == ""
-            .get()
-            .then(function(querySnapshot) 
-            {
-                if(option == "count")
-                {
-                    count = querySnapshot.size;
-
-                    //send data
-                    res.send(JSON.stringify({nPartners:count+''}));
+                    res.send("success");
                 }
-                else if (option == "data" || option == null || option =="")
-                {
+            );
 
-                    //iterate through all the data present in the database
-                    querySnapshot.forEach(function(doc) 
+        });
+    });      
+});
+exports.getEditorData = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {   
+        
+        var editorIdentifier = req.query.editor;
+                
+        return new Promise(function(resolve, reject)
+        {    
+            admin.firestore()
+            .collection("gyms")
+                .where('registrationStatus','==','partnerAdded')
+                .where('refby','==',editorIdentifier)
+                .get()
+                .then(function(snap_added) 
+                {
+                    admin.firestore()
+                    .collection("gyms")
+                        .where('registrationStatus','==','addedForApproval')
+                        .where('refby','==',editorIdentifier)
+                        .get()
+                        .then(function(snap_approval) 
+                        {
+                            var res_data=
+                            {
+                                nPartnerAdded: snap_added.size,
+                                nPartnerApproval: snap_approval.size
+                            }
+
+                            res.send(JSON.stringify(res_data));
+                            
+                        
+                        });
+                
+                }); 
+        
+           
+        });
+    });      
+});
+
+exports.getEditorDataList = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {   
+        
+        var editorIdentifier = req.query.editor; //name or other identifier as per the database
+       // var filter = req.query.filter; //registration status
+        var max = req.query.max==undefined?20000:req.query.max; //limit to no of data        
+        return new Promise(function(resolve, reject)
+        {    
+            admin.firestore()
+            .collection("gyms")
+               // .where('registrationStatus','==',filter)
+                .where('refby','==',editorIdentifier)
+                .get()
+                .then(function(snap) 
+                {
+                    var data =[];
+                    snap.forEach(function(doc) 
                     {
-                        //Get uid
                         var size = data.length;
                         data[size] = doc.data();
-                        data[size]._uid_ = doc.id;
-                        
-                        //Generate Date obj from Timestamp
+                        data[size].id = doc.id;
+                        //make date string
                         var _date = data[size].date===undefined?{_seconds:0, _nanoseconds:0}:data[size].date;
                         var seconds = _date._seconds;
                         var nseconds = _date._nanoseconds;
@@ -133,49 +179,26 @@ exports.getGymInfo = functions.https.onRequest((req, res) => {
 
                         var strDate = `${day}/${month}/${year} ${hour}:${minute}`;
 
-                        console.log(strDate);
-
-                        //send appended data
                         data[size].date = strDate;
-                    
+
+                        var rs = data[size].registrationStatus;
+                        if(rs=='partnerAdded')rs='Approved';
+                        if(rs=='addedForApproval')rs='Pending Approval';
+
+                        data[size].registrationStatus=rs;
+                        //console.log('cron says '+doc.id);
+                
                     });
 
-
-
-                    //send data
-                     res.send(JSON.stringify(data));
-                }
-                else
-                {
-                    res.send("Use 'url?option=count' or 'url?option=data'");
-                }
-
-            });
-
+                    //send data to client here
+                    res.send(JSON.stringify(data));
+                
+                }); 
+        
+           
         });
     });      
 });
-const functions = require('firebase-functions');
-const admin = require('firebase-admin');
-const cors = require('cors')({origin: true});
-const request = require('request');
-
-const firebaseConfig = {
-    apiKey: "AIzaSyB4IV-tlnFXP09Df_i_dKn1Wm3jHX9ObJQ",
-    authDomain: "gympanzee-v-1-0.firebaseapp.com",
-    databaseURL: "https://gympanzee-v-1-0.firebaseio.com",
-    projectId: "gympanzee-v-1-0",
-    storageBucket: "gympanzee-v-1-0.appspot.com",
-    messagingSenderId: "629024763027",
-    appId: "1:629024763027:web:f2e4e723bb7cfeef93f166"
-  };
-
-var textLocal = {
-    apiKey: "+Hc2/CYYkCY-WBtwCqLXtGUkH9aIu04FhXYy5chlpr",
-    sender: "GPNZEE"
-}   
-
-admin.initializeApp(firebaseConfig);
 //OTP Generation and Sending 
 exports.generateOTP = functions.https.onRequest((req, res) => {
     cors(req, res, () => {
@@ -419,67 +442,84 @@ exports.addPartnerAfterApproval = functions.https.onRequest((req, res) => {
           
     });      
 });
-exports.getEditorData = functions.https.onRequest((req, res) => {
-    cors(req, res, () => {   
-        
-        var editorIdentifier = req.query.editor;
-                
-        return new Promise(function(resolve, reject)
-        {    
-            admin.firestore()
-            .collection("gyms")
-                .where('registrationStatus','==','partnerAdded')
-                .where('refby','==',editorIdentifier)
-                .get()
-                .then(function(snap_added) 
-                {
-                    admin.firestore()
-                    .collection("gyms")
-                        .where('registrationStatus','==','addedForApproval')
-                        .where('refby','==',editorIdentifier)
-                        .get()
-                        .then(function(snap_approval) 
-                        {
-                            var res_data=
-                            {
-                                nPartnerAdded: snap_added.size,
-                                nPartnerApproval: snap_approval.size
-                            }
+//Get gym info
+exports.getGymInfo = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {     
 
-                            res.send(JSON.stringify(res_data));
-                            
-                        
-                        });
-                
-                }); 
-        
-           
-        });
-    });      
-});
+        //option helps in switching between different modes in a function
+        //option == "count"  --> will give the number of data requesting callbacks 
+        //option == "data"   --> will get the data of all users in json   
+        const option = req.query.option;
+        var filter = "";
+        filter = req.query.filter;
 
-exports.getEditorDataList = functions.https.onRequest((req, res) => {
-    cors(req, res, () => {   
-        
-        var editorIdentifier = req.query.editor; //name or other identifier as per the database
-       // var filter = req.query.filter; //registration status
-        var max = req.query.max==undefined?20000:req.query.max; //limit to no of data        
         return new Promise(function(resolve, reject)
-        {    
-            admin.firestore()
-            .collection("gyms")
-               // .where('registrationStatus','==',filter)
-                .where('refby','==',editorIdentifier)
+        {     
+            var data=[];
+            var count=0;
+
+            //return details of a gym with the given id
+            if(option=="uid")
+            {
+                var uid = req.query.uid;
+                admin.firestore()       //get firestore reference
+                .collection("gyms")     //get collection named "gyms"
+                .doc(uid)
                 .get()
-                .then(function(snap) 
+                .then(function(doc)
                 {
-                    var data =[];
-                    snap.forEach(function(doc) 
+                    var data = doc.data();
+                    var date = data.date==undefined?{_seconds:0, _nanoseconds:0}:data.date;
+                    var seconds = date._seconds;
+                    var nseconds = date._nanoseconds;
+                    var date= (new admin.firestore.Timestamp(seconds,nseconds)).toDate();
+
+                    date.setHours(date.getHours() + 5);
+                    date.setMinutes(date.getMinutes() + 30);
+
+                    var year    = ('00'+date.getFullYear()).slice(-4);
+                    var month   = ('00'+(date.getMonth()+1)).slice(-2);
+                    var day     = ('00'+date.getDay()).slice(-2);
+                    var hour    = ('00'+date.getHours()).slice(-2);
+                    var minute  = ('00'+date.getMinutes()).slice(-2);
+
+                    var strDate = `${day}/${month}/${year} ${hour}:${minute}`;
+
+                    console.log(strDate);
+
+                    data.date = strDate;
+                
+                    res.send(JSON.stringify(data));   
+                });
+            }
+
+            //
+            else
+            admin.firestore()       //get firestore reference
+            .collection("gyms")     //get collection named "gyms"
+            .where("registrationStatus", "==", filter)  //filter documents with field password == ""
+            .get()
+            .then(function(querySnapshot) 
+            {
+                if(option == "count")
+                {
+                    count = querySnapshot.size;
+
+                    //send data
+                    res.send(JSON.stringify({nPartners:count+''}));
+                }
+                else if (option == "data" || option == null || option =="")
+                {
+
+                    //iterate through all the data present in the database
+                    querySnapshot.forEach(function(doc) 
                     {
+                        //Get uid
                         var size = data.length;
                         data[size] = doc.data();
-                        data[size].id = doc.id;
-                        //make date string
+                        data[size]._uid_ = doc.id;
+                        
+                        //Generate Date obj from Timestamp
                         var _date = data[size].date===undefined?{_seconds:0, _nanoseconds:0}:data[size].date;
                         var seconds = _date._seconds;
                         var nseconds = _date._nanoseconds;
@@ -496,22 +536,94 @@ exports.getEditorDataList = functions.https.onRequest((req, res) => {
 
                         var strDate = `${day}/${month}/${year} ${hour}:${minute}`;
 
+                        console.log(strDate);
+
+                        //send appended data
                         data[size].date = strDate;
-
-                        var rs = data[size].registrationStatus;
-                        if(rs=='partnerAdded')rs='Approved';
-                        if(rs=='addedForApproval')rs='Pending Approval';
-
-                        data[size].registrationStatus=rs;
-                        //console.log('cron says '+doc.id);
-                
+                    
                     });
 
-                    //send data to client here
-                    res.send(JSON.stringify(data));
-                
-                }); 
+
+
+                    //send data
+                     res.send(JSON.stringify(data));
+                }
+                else
+                {
+                    res.send("Use 'url?option=count' or 'url?option=data'");
+                }
+
+            });
+
+        });
+    });      
+});
+//CRON Jobs
+/*
+exports.scheduledFunctionCrontab = functions.pubsub.schedule('* * * * *')
+  .onRun((context) => {
+    return new Promise(function(resolve, reject)
+    {   
+        admin.firestore()
+        .collection("gyms")
+        .where("registrationStatus","==","partnerAdded")
+        .get()
+        .then(function (__snap)
+        {
+            __snap.forEach(function(doc) 
+            {
+                console.log('cron says '+doc.id);
+            });
+        })
+    });
+});
+*/
+exports.AllowAccount = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {     
         
+        var value = req.query.value; //yes => activate account, no => block account
+        //any one of these
+        var uid = req.query.uid;
+        var mobile = req.query.mobile;
+        var unique_pin = req.query.unique_pin;
+        uid = uid==undefined?'':uid;
+        mobile = mobile==undefined?'':mobile;
+        unique_pin = unique_pin==undefined?'':unique_pin;
+
+        return new Promise(function(resolve, reject)
+        {     
+            if(uid.length>1)
+            admin.firestore()       //get firestore reference
+            .collection("gyms")  
+            .doc(uid)
+            .update({block:value})
+            .then(function(querySnapshot) 
+            {
+                var msg = '';
+                if(value=='yes')
+                {
+                msg = `Dear Gympanzee Partner,\n`+
+                `Your account has been temporarily blocked.\n`+
+                `Contact our team to reactivate. You can also write to us at support@gympanzee.app`;
+                
+                var url = `https://api.textlocal.in/send/?apikey=${textLocal.apiKey}&numbers=91${mobile}&sender=${textLocal.sender}&message=${msg}`
+                request(url, function (error, response, body) {
+                    
+                    console.log(`mob: ${mobile} uid: ${uid}`);
+                    console.log(msg);
+                    console.log( body);
+                 
+                    res.send(body);
+                   
+                });
+
+                }
+                else
+                {
+                console.log('result :'+value);
+                res.send('result :'+value);
+                }
+            });
            
         });
     });      
@@ -647,36 +759,6 @@ exports.touchNotification = functions.https.onRequest((req, res) => {
         });
     });      
 });
-exports.checksms = functions.https.onRequest((req, res) => {
-    cors(req, res, () => {
-        const mob = "7004219327";
-        const pin ="100000";
-        const pass="098989";
-        const usrnm = "ShubhamKumar";
-
-        var obj = getMessageUrl(`91${mob}`,pin,pass,usrnm);
-        var url = obj.url;
-        var msg = obj.msg;
-
-                request(url, function (error, response, body) {
-                    console.log(msg);
-                    console.log( body);
-                 
-                    res.send(body);
-                   
-                });
-    });      
-});
-
-function getMessageUrl(mob,pin,pass,usrnm)
-{
-    var msg = `Congratulations! Your GympanzeeClub account has been approved. Your Partner's Identification Number (PIN) is ${pin}%nPlease use this PIN for all future communications.%nLogin to GympanzeeClub Android app using the following credentials:%nUsername: ${usrnm}%nPassword: ${pass}%nPlease change your password immediately following your first login.%n Do not share this message with anyone.%nYou are just one-step away from DOUBLING your BUSINESS.%nContact our representative to list your fitness club on the Gympanzee platform.`
-     msg = `Congratulations! Your GympanzeeClub account has been approved. Your Partner's Identification Number (PIN) is ${pin}\nPlease use this PIN for all future communications.\nLogin to GympanzeeClub Android app using the following credentials:\nUsername: ${usrnm}\nPassword: ${pass}\nPlease change your password immediately following your first login.\n Do not share this message with anyone.\nYou are just one-step away from DOUBLING your BUSINESS.\nContact our representative to list your fitness club on the Gympanzee platform.`
-    var url = 
-        `https://api.textlocal.in/send/?apikey=${textLocal.apiKey}&numbers=${mob}&sender=${textLocal.sender}&message=${msg}`
-    
-        return {url:url,msg:msg};
-}
 exports.getMisc = functions.https.onRequest((req, res) => {
     cors(req, res, () => {    
                 
@@ -809,56 +891,36 @@ exports.removeAccount = functions.https.onRequest((req, res) => {
        
     });      
 });
-exports.AllowAccount = functions.https.onRequest((req, res) => {
-    cors(req, res, () => {     
-        
-        var value = req.query.value; //yes => activate account, no => block account
-        //any one of these
-        var uid = req.query.uid;
-        var mobile = req.query.mobile;
-        var unique_pin = req.query.unique_pin;
-        uid = uid==undefined?'':uid;
-        mobile = mobile==undefined?'':mobile;
-        unique_pin = unique_pin==undefined?'':unique_pin;
+exports.checksms = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {
+        const mob = "7004219327";
+        const pin ="100000";
+        const pass="098989";
+        const usrnm = "ShubhamKumar";
 
-        return new Promise(function(resolve, reject)
-        {     
-            if(uid.length>1)
-            admin.firestore()       //get firestore reference
-            .collection("gyms")  
-            .doc(uid)
-            .update({block:value})
-            .then(function(querySnapshot) 
-            {
-                var msg = '';
-                if(value=='yes')
-                {
-                msg = `Dear Gympanzee Partner,\n`+
-                `Your account has been temporarily blocked.\n`+
-                `Contact our team to reactivate. You can also write to us at support@gympanzee.app`;
-                
-                var url = `https://api.textlocal.in/send/?apikey=${textLocal.apiKey}&numbers=91${mobile}&sender=${textLocal.sender}&message=${msg}`
+        var obj = getMessageUrl(`91${mob}`,pin,pass,usrnm);
+        var url = obj.url;
+        var msg = obj.msg;
+
                 request(url, function (error, response, body) {
-                    
-                    console.log(`mob: ${mobile} uid: ${uid}`);
                     console.log(msg);
                     console.log( body);
                  
                     res.send(body);
                    
                 });
-
-                }
-                else
-                {
-                console.log('result :'+value);
-                res.send('result :'+value);
-                }
-            });
-           
-        });
     });      
 });
+
+function getMessageUrl(mob,pin,pass,usrnm)
+{
+    var msg = `Congratulations! Your GympanzeeClub account has been approved. Your Partner's Identification Number (PIN) is ${pin}%nPlease use this PIN for all future communications.%nLogin to GympanzeeClub Android app using the following credentials:%nUsername: ${usrnm}%nPassword: ${pass}%nPlease change your password immediately following your first login.%n Do not share this message with anyone.%nYou are just one-step away from DOUBLING your BUSINESS.%nContact our representative to list your fitness club on the Gympanzee platform.`
+     msg = `Congratulations! Your GympanzeeClub account has been approved. Your Partner's Identification Number (PIN) is ${pin}\nPlease use this PIN for all future communications.\nLogin to GympanzeeClub Android app using the following credentials:\nUsername: ${usrnm}\nPassword: ${pass}\nPlease change your password immediately following your first login.\n Do not share this message with anyone.\nYou are just one-step away from DOUBLING your BUSINESS.\nContact our representative to list your fitness club on the Gympanzee platform.`
+    var url = 
+        `https://api.textlocal.in/send/?apikey=${textLocal.apiKey}&numbers=${mob}&sender=${textLocal.sender}&message=${msg}`
+    
+        return {url:url,msg:msg};
+}
 //check user name already exist in database
 exports.validateUsername = functions.https.onRequest((req, res) => {
     cors(req, res, () => {

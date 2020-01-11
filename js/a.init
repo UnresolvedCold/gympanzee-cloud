@@ -13,9 +13,12 @@ const firebaseConfig = {
     appId: "1:629024763027:web:f2e4e723bb7cfeef93f166"
   };
 
+//must be var as will change sometimes during execution  
 var textLocal = {
     apiKey: "+Hc2/CYYkCY-WBtwCqLXtGUkH9aIu04FhXYy5chlpr",
     sender: "GPNZEE"
 }   
 
 admin.initializeApp(firebaseConfig);
+
+var clubRoot =  admin.firestore();//.collection("Clubs");
