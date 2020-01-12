@@ -21,39 +21,45 @@ var textLocal = {
 
 admin.initializeApp(firebaseConfig);
 
-var clubRoot =  admin.firestore();//.collection("Clubs");
+
 exports.addClub = functions.https.onRequest((req, res) => {
     cors(req, res, () => {
 
-    //Data required for database
-   const name=req.query.name;
-   const address = req.query.address;
-   const city = req.query.city;
-   const phone = req.query.phone;
-   const workingDays = req.query.workingDays;
-   const workingHours = req.query.workingHours;
-   const plan = req.query.plan;
-   const amenities = req.query.amenities;
-   const gumasta = req.query.gumasta;
-   const GSTCertificate = req.query.GSTCertificate;
-   const PAN = req.query.PAN;
-   const Aadhar = req.query.Aadhar;
-   const billingACname = req.query.billingACname;
-   const billingACNumber = req.query.billingACNumber;
-   const IFSC = req.query.IFSC;
-   const GSTIN = req.query.GSTIN;
-   const billingPAN = req.query.billingPAN;
-   const billingPhone = req.query.billingPhone;
-   const billingAddress = req.query.billingAddress;
-   const state = req.query.state;
-   const lat = req.query.lat;
-   const lon = req.query.lon; 
+    // Data required for database
+    // demo urls
+    // Add Club without setting any fields -> https://us-central1-gympanzee-v-1-0.cloudfunctions.net/addClub?username=<UserName>
+    // Add Club with name as 'Club1' -> https://us-central1-gympanzee-v-1-0.cloudfunctions.net/addClub?username=<UserName>&name=Club1
+    // Add Club with name as 'Club1' and address as 'address1' -> https://us-central1-gympanzee-v-1-0.cloudfunctions.net/addClub?username=<UserName>&name=Club1&address=address1
+
+    //Data for identifying an account
+    const username = req.query.username; 
+
+    //Data to be stored
+    const name=req.query.name;
+    const address = req.query.address;
+    const city = req.query.city;
+    const phone = req.query.phone;
+    const workingDays = req.query.workingDays;
+    const workingHours = req.query.workingHours;
+    const plan = req.query.plan;
+    const amenities = req.query.amenities;
+    const gumasta = req.query.gumasta;
+    const GSTCertificate = req.query.GSTCertificate;
+    const PAN = req.query.PAN;
+    const Aadhar = req.query.Aadhar;
+    const billingACname = req.query.billingACname;
+    const billingACNumber = req.query.billingACNumber;
+    const IFSC = req.query.IFSC;
+    const GSTIN = req.query.GSTIN;
+    const billingPAN = req.query.billingPAN;
+    const billingPhone = req.query.billingPhone;
+    const billingAddress = req.query.billingAddress;
+    const state = req.query.state;
+    const lat = req.query.lat;
+    const lon = req.query.lon; 
 
    //Flags
    const shouldAdd = req.query.shouldAdd;   // ==144 add directly else send for approval
-
-   //Data for identifying an account
-    const username = req.query.username; 
 
     //Data json to push
     const dataJSON = 
@@ -99,103 +105,6 @@ exports.addClub = functions.https.onRequest((req, res) => {
                 }
             );
 
-        });
-    });      
-});
-exports.getEditorData = functions.https.onRequest((req, res) => {
-    cors(req, res, () => {   
-        
-        var editorIdentifier = req.query.editor;
-                
-        return new Promise(function(resolve, reject)
-        {    
-            admin.firestore()
-            .collection("gyms")
-                .where('registrationStatus','==','partnerAdded')
-                .where('refby','==',editorIdentifier)
-                .get()
-                .then(function(snap_added) 
-                {
-                    admin.firestore()
-                    .collection("gyms")
-                        .where('registrationStatus','==','addedForApproval')
-                        .where('refby','==',editorIdentifier)
-                        .get()
-                        .then(function(snap_approval) 
-                        {
-                            var res_data=
-                            {
-                                nPartnerAdded: snap_added.size,
-                                nPartnerApproval: snap_approval.size
-                            }
-
-                            res.send(JSON.stringify(res_data));
-                            
-                        
-                        });
-                
-                }); 
-        
-           
-        });
-    });      
-});
-
-exports.getEditorDataList = functions.https.onRequest((req, res) => {
-    cors(req, res, () => {   
-        
-        var editorIdentifier = req.query.editor; //name or other identifier as per the database
-       // var filter = req.query.filter; //registration status
-        var max = req.query.max==undefined?20000:req.query.max; //limit to no of data        
-        return new Promise(function(resolve, reject)
-        {    
-            admin.firestore()
-            .collection("gyms")
-               // .where('registrationStatus','==',filter)
-                .where('refby','==',editorIdentifier)
-                .get()
-                .then(function(snap) 
-                {
-                    var data =[];
-                    snap.forEach(function(doc) 
-                    {
-                        var size = data.length;
-                        data[size] = doc.data();
-                        data[size].id = doc.id;
-                        //make date string
-                        var _date = data[size].date===undefined?{_seconds:0, _nanoseconds:0}:data[size].date;
-                        var seconds = _date._seconds;
-                        var nseconds = _date._nanoseconds;
-                        date= (new admin.firestore.Timestamp(seconds,nseconds)).toDate();
-
-                        date.setHours(date.getHours() + 5);
-                        date.setMinutes(date.getMinutes() + 30);
-
-                        var year    = ('00'+date.getFullYear()).slice(-4);
-                        var month   = ('00'+date.getMonth()+1).slice(-2);
-                        var day     = ('00'+date.getDate()).slice(-2);
-                        var hour    = ('00'+date.getHours()).slice(-2);
-                        var minute  = ('00'+date.getMinutes()).slice(-2);
-
-                        var strDate = `${day}/${month}/${year} ${hour}:${minute}`;
-
-                        data[size].date = strDate;
-
-                        var rs = data[size].registrationStatus;
-                        if(rs=='partnerAdded')rs='Approved';
-                        if(rs=='addedForApproval')rs='Pending Approval';
-
-                        data[size].registrationStatus=rs;
-                        //console.log('cron says '+doc.id);
-                
-                    });
-
-                    //send data to client here
-                    res.send(JSON.stringify(data));
-                
-                }); 
-        
-           
         });
     });      
 });
@@ -442,84 +351,67 @@ exports.addPartnerAfterApproval = functions.https.onRequest((req, res) => {
           
     });      
 });
-//Get gym info
-exports.getGymInfo = functions.https.onRequest((req, res) => {
-    cors(req, res, () => {     
-
-        //option helps in switching between different modes in a function
-        //option == "count"  --> will give the number of data requesting callbacks 
-        //option == "data"   --> will get the data of all users in json   
-        const option = req.query.option;
-        var filter = "";
-        filter = req.query.filter;
-
-        return new Promise(function(resolve, reject)
-        {     
-            var data=[];
-            var count=0;
-
-            //return details of a gym with the given id
-            if(option=="uid")
-            {
-                var uid = req.query.uid;
-                admin.firestore()       //get firestore reference
-                .collection("gyms")     //get collection named "gyms"
-                .doc(uid)
-                .get()
-                .then(function(doc)
-                {
-                    var data = doc.data();
-                    var date = data.date==undefined?{_seconds:0, _nanoseconds:0}:data.date;
-                    var seconds = date._seconds;
-                    var nseconds = date._nanoseconds;
-                    var date= (new admin.firestore.Timestamp(seconds,nseconds)).toDate();
-
-                    date.setHours(date.getHours() + 5);
-                    date.setMinutes(date.getMinutes() + 30);
-
-                    var year    = ('00'+date.getFullYear()).slice(-4);
-                    var month   = ('00'+(date.getMonth()+1)).slice(-2);
-                    var day     = ('00'+date.getDay()).slice(-2);
-                    var hour    = ('00'+date.getHours()).slice(-2);
-                    var minute  = ('00'+date.getMinutes()).slice(-2);
-
-                    var strDate = `${day}/${month}/${year} ${hour}:${minute}`;
-
-                    console.log(strDate);
-
-                    data.date = strDate;
+exports.getEditorData = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {   
+        
+        var editorIdentifier = req.query.editor;
                 
-                    res.send(JSON.stringify(data));   
-                });
-            }
-
-            //
-            else
-            admin.firestore()       //get firestore reference
-            .collection("gyms")     //get collection named "gyms"
-            .where("registrationStatus", "==", filter)  //filter documents with field password == ""
-            .get()
-            .then(function(querySnapshot) 
-            {
-                if(option == "count")
+        return new Promise(function(resolve, reject)
+        {    
+            admin.firestore()
+            .collection("gyms")
+                .where('registrationStatus','==','partnerAdded')
+                .where('refby','==',editorIdentifier)
+                .get()
+                .then(function(snap_added) 
                 {
-                    count = querySnapshot.size;
+                    admin.firestore()
+                    .collection("gyms")
+                        .where('registrationStatus','==','addedForApproval')
+                        .where('refby','==',editorIdentifier)
+                        .get()
+                        .then(function(snap_approval) 
+                        {
+                            var res_data=
+                            {
+                                nPartnerAdded: snap_added.size,
+                                nPartnerApproval: snap_approval.size
+                            }
 
-                    //send data
-                    res.send(JSON.stringify({nPartners:count+''}));
-                }
-                else if (option == "data" || option == null || option =="")
+                            res.send(JSON.stringify(res_data));
+                            
+                        
+                        });
+                
+                }); 
+        
+           
+        });
+    });      
+});
+
+exports.getEditorDataList = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {   
+        
+        var editorIdentifier = req.query.editor; //name or other identifier as per the database
+       // var filter = req.query.filter; //registration status
+        var max = req.query.max==undefined?20000:req.query.max; //limit to no of data        
+        return new Promise(function(resolve, reject)
+        {    
+            admin.firestore()
+            .collection("gyms")
+               // .where('registrationStatus','==',filter)
+                .where('refby','==',editorIdentifier)
+                .get()
+                .then(function(snap) 
                 {
-
-                    //iterate through all the data present in the database
-                    querySnapshot.forEach(function(doc) 
+                    var data =[];
+                    snap.forEach(function(doc) 
                     {
-                        //Get uid
                         var size = data.length;
                         data[size] = doc.data();
-                        data[size]._uid_ = doc.id;
-                        
-                        //Generate Date obj from Timestamp
+                        data[size].id = doc.id;
+                        //make date string
                         var _date = data[size].date===undefined?{_seconds:0, _nanoseconds:0}:data[size].date;
                         var seconds = _date._seconds;
                         var nseconds = _date._nanoseconds;
@@ -536,25 +428,23 @@ exports.getGymInfo = functions.https.onRequest((req, res) => {
 
                         var strDate = `${day}/${month}/${year} ${hour}:${minute}`;
 
-                        console.log(strDate);
-
-                        //send appended data
                         data[size].date = strDate;
-                    
+
+                        var rs = data[size].registrationStatus;
+                        if(rs=='partnerAdded')rs='Approved';
+                        if(rs=='addedForApproval')rs='Pending Approval';
+
+                        data[size].registrationStatus=rs;
+                        //console.log('cron says '+doc.id);
+                
                     });
 
-
-
-                    //send data
-                     res.send(JSON.stringify(data));
-                }
-                else
-                {
-                    res.send("Use 'url?option=count' or 'url?option=data'");
-                }
-
-            });
-
+                    //send data to client here
+                    res.send(JSON.stringify(data));
+                
+                }); 
+        
+           
         });
     });      
 });
@@ -578,6 +468,56 @@ exports.scheduledFunctionCrontab = functions.pubsub.schedule('* * * * *')
     });
 });
 */
+exports.getMisc = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {    
+                
+        return new Promise(function(resolve, reject)
+        {    
+            var now = Date.now();
+            var nowObject = new Date(now);
+
+            var beginObject = new Date(nowObject.getFullYear(),nowObject.getMonth()-1,1,0,0,0,0);
+            var endObject = new Date(nowObject.getFullYear(),nowObject.getMonth(),1,0,0,0,0)
+            admin.firestore()
+            .collection("gyms")
+                .where('registrationStatus','==','partnerAdded')
+                .where('date', '>=', beginObject)
+                .where('date','<', endObject )
+                .get()
+                .then(function(begin) 
+                {
+                    console.log(begin.size);                
+                    
+                    admin.firestore()
+                    .collection("gyms")
+                        .where('registrationStatus','==','partnerAdded')
+                        .where('date', '>=', endObject)
+                        .where('date','<=',nowObject)
+                        .get()
+                        .then(function(end) 
+                        {
+                            var per_nPartner = begin.size!=0? Math.round(((end.size)/begin.size)*10000)/100:100;
+                            
+                            var res_data = {
+                                nPartner_prevMonth:begin.size,
+                                nPartner_thisMonth:end.size,
+                                per_nPartner: per_nPartner,
+                                per_nPartner_nosign: Math.abs(per_nPartner),
+                                per_nPartner_sign:Math.sign(per_nPartner),
+                                per_nPartner_style: Math.sign(per_nPartner)==-1?'fas fa-arrow-down':Math.sign(per_nPartner)==0?'':'fa fa-arrow-up',
+                                per_nPartner_style1: Math.sign(per_nPartner)==-1?'fas fa-angle-down':Math.sign(per_nPartner)==0?'':'fas fa-angle-up'
+                            }
+                            console.log(end.size)
+                            res.send(JSON.stringify(res_data))
+                        
+                        });
+                
+                }); 
+        
+           
+        });
+    });      
+});
 exports.AllowAccount = functions.https.onRequest((req, res) => {
     cors(req, res, () => {     
         
@@ -759,56 +699,63 @@ exports.touchNotification = functions.https.onRequest((req, res) => {
         });
     });      
 });
-exports.getMisc = functions.https.onRequest((req, res) => {
-    cors(req, res, () => {    
-                
+//check user name already exist in database
+exports.validateUsername = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {
+
+        const username=req.query.username;
+
         return new Promise(function(resolve, reject)
         {    
-            var now = Date.now();
-            var nowObject = new Date(now);
 
-            var beginObject = new Date(nowObject.getFullYear(),nowObject.getMonth()-1,1,0,0,0,0);
-            var endObject = new Date(nowObject.getFullYear(),nowObject.getMonth(),1,0,0,0,0)
             admin.firestore()
             .collection("gyms")
-                .where('registrationStatus','==','partnerAdded')
-                .where('date', '>=', beginObject)
-                .where('date','<', endObject )
-                .get()
-                .then(function(begin) 
-                {
-                    console.log(begin.size);                
-                    
-                    admin.firestore()
-                    .collection("gyms")
-                        .where('registrationStatus','==','partnerAdded')
-                        .where('date', '>=', endObject)
-                        .where('date','<=',nowObject)
-                        .get()
-                        .then(function(end) 
-                        {
-                            var per_nPartner = begin.size!=0? Math.round(((end.size)/begin.size)*10000)/100:100;
-                            
-                            var res_data = {
-                                nPartner_prevMonth:begin.size,
-                                nPartner_thisMonth:end.size,
-                                per_nPartner: per_nPartner,
-                                per_nPartner_nosign: Math.abs(per_nPartner),
-                                per_nPartner_sign:Math.sign(per_nPartner),
-                                per_nPartner_style: Math.sign(per_nPartner)==-1?'fas fa-arrow-down':Math.sign(per_nPartner)==0?'':'fa fa-arrow-up',
-                                per_nPartner_style1: Math.sign(per_nPartner)==-1?'fas fa-angle-down':Math.sign(per_nPartner)==0?'':'fas fa-angle-up'
-                            }
-                            console.log(end.size)
-                            res.send(JSON.stringify(res_data))
-                        
-                        });
-                
-                }); 
-        
-           
+            .where("username","==",username)
+            .get()
+            .then(function(querySnapshot) 
+            {
+                if(querySnapshot.empty)
+                res.send("valid");
+                else
+                res.send("alreadytaken");
+            });
+
+
         });
     });      
 });
+
+var clubRoot =  admin.firestore();//.collection("Clubs");
+exports.checksms = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {
+        const mob = "7004219327";
+        const pin ="100000";
+        const pass="098989";
+        const usrnm = "ShubhamKumar";
+
+        var obj = getMessageUrl(`91${mob}`,pin,pass,usrnm);
+        var url = obj.url;
+        var msg = obj.msg;
+
+                request(url, function (error, response, body) {
+                    console.log(msg);
+                    console.log( body);
+                 
+                    res.send(body);
+                   
+                });
+    });      
+});
+
+function getMessageUrl(mob,pin,pass,usrnm)
+{
+    var msg = `Congratulations! Your GympanzeeClub account has been approved. Your Partner's Identification Number (PIN) is ${pin}%nPlease use this PIN for all future communications.%nLogin to GympanzeeClub Android app using the following credentials:%nUsername: ${usrnm}%nPassword: ${pass}%nPlease change your password immediately following your first login.%n Do not share this message with anyone.%nYou are just one-step away from DOUBLING your BUSINESS.%nContact our representative to list your fitness club on the Gympanzee platform.`
+     msg = `Congratulations! Your GympanzeeClub account has been approved. Your Partner's Identification Number (PIN) is ${pin}\nPlease use this PIN for all future communications.\nLogin to GympanzeeClub Android app using the following credentials:\nUsername: ${usrnm}\nPassword: ${pass}\nPlease change your password immediately following your first login.\n Do not share this message with anyone.\nYou are just one-step away from DOUBLING your BUSINESS.\nContact our representative to list your fitness club on the Gympanzee platform.`
+    var url = 
+        `https://api.textlocal.in/send/?apikey=${textLocal.apiKey}&numbers=${mob}&sender=${textLocal.sender}&message=${msg}`
+    
+        return {url:url,msg:msg};
+}
 //set Stage of completion of gym
 exports.setGymStage = functions.https.onRequest((req, res) => {
     cors(req, res, () => {
@@ -891,57 +838,118 @@ exports.removeAccount = functions.https.onRequest((req, res) => {
        
     });      
 });
-exports.checksms = functions.https.onRequest((req, res) => {
-    cors(req, res, () => {
-        const mob = "7004219327";
-        const pin ="100000";
-        const pass="098989";
-        const usrnm = "ShubhamKumar";
+//Get gym info
+exports.getGymInfo = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {     
 
-        var obj = getMessageUrl(`91${mob}`,pin,pass,usrnm);
-        var url = obj.url;
-        var msg = obj.msg;
-
-                request(url, function (error, response, body) {
-                    console.log(msg);
-                    console.log( body);
-                 
-                    res.send(body);
-                   
-                });
-    });      
-});
-
-function getMessageUrl(mob,pin,pass,usrnm)
-{
-    var msg = `Congratulations! Your GympanzeeClub account has been approved. Your Partner's Identification Number (PIN) is ${pin}%nPlease use this PIN for all future communications.%nLogin to GympanzeeClub Android app using the following credentials:%nUsername: ${usrnm}%nPassword: ${pass}%nPlease change your password immediately following your first login.%n Do not share this message with anyone.%nYou are just one-step away from DOUBLING your BUSINESS.%nContact our representative to list your fitness club on the Gympanzee platform.`
-     msg = `Congratulations! Your GympanzeeClub account has been approved. Your Partner's Identification Number (PIN) is ${pin}\nPlease use this PIN for all future communications.\nLogin to GympanzeeClub Android app using the following credentials:\nUsername: ${usrnm}\nPassword: ${pass}\nPlease change your password immediately following your first login.\n Do not share this message with anyone.\nYou are just one-step away from DOUBLING your BUSINESS.\nContact our representative to list your fitness club on the Gympanzee platform.`
-    var url = 
-        `https://api.textlocal.in/send/?apikey=${textLocal.apiKey}&numbers=${mob}&sender=${textLocal.sender}&message=${msg}`
-    
-        return {url:url,msg:msg};
-}
-//check user name already exist in database
-exports.validateUsername = functions.https.onRequest((req, res) => {
-    cors(req, res, () => {
-
-        const username=req.query.username;
+        //option helps in switching between different modes in a function
+        //option == "count"  --> will give the number of data requesting callbacks 
+        //option == "data"   --> will get the data of all users in json   
+        const option = req.query.option;
+        var filter = "";
+        filter = req.query.filter;
 
         return new Promise(function(resolve, reject)
-        {    
+        {     
+            var data=[];
+            var count=0;
 
-            admin.firestore()
-            .collection("gyms")
-            .where("username","==",username)
+            //return details of a gym with the given id
+            if(option=="uid")
+            {
+                var uid = req.query.uid;
+                admin.firestore()       //get firestore reference
+                .collection("gyms")     //get collection named "gyms"
+                .doc(uid)
+                .get()
+                .then(function(doc)
+                {
+                    var data = doc.data();
+                    var date = data.date==undefined?{_seconds:0, _nanoseconds:0}:data.date;
+                    var seconds = date._seconds;
+                    var nseconds = date._nanoseconds;
+                    var date= (new admin.firestore.Timestamp(seconds,nseconds)).toDate();
+
+                    date.setHours(date.getHours() + 5);
+                    date.setMinutes(date.getMinutes() + 30);
+
+                    var year    = ('00'+date.getFullYear()).slice(-4);
+                    var month   = ('00'+(date.getMonth()+1)).slice(-2);
+                    var day     = ('00'+date.getDay()).slice(-2);
+                    var hour    = ('00'+date.getHours()).slice(-2);
+                    var minute  = ('00'+date.getMinutes()).slice(-2);
+
+                    var strDate = `${day}/${month}/${year} ${hour}:${minute}`;
+
+                    console.log(strDate);
+
+                    data.date = strDate;
+                
+                    res.send(JSON.stringify(data));   
+                });
+            }
+
+            //
+            else
+            admin.firestore()       //get firestore reference
+            .collection("gyms")     //get collection named "gyms"
+            .where("registrationStatus", "==", filter)  //filter documents with field password == ""
             .get()
             .then(function(querySnapshot) 
             {
-                if(querySnapshot.empty)
-                res.send("valid");
-                else
-                res.send("alreadytaken");
-            });
+                if(option == "count")
+                {
+                    count = querySnapshot.size;
 
+                    //send data
+                    res.send(JSON.stringify({nPartners:count+''}));
+                }
+                else if (option == "data" || option == null || option =="")
+                {
+
+                    //iterate through all the data present in the database
+                    querySnapshot.forEach(function(doc) 
+                    {
+                        //Get uid
+                        var size = data.length;
+                        data[size] = doc.data();
+                        data[size]._uid_ = doc.id;
+                        
+                        //Generate Date obj from Timestamp
+                        var _date = data[size].date===undefined?{_seconds:0, _nanoseconds:0}:data[size].date;
+                        var seconds = _date._seconds;
+                        var nseconds = _date._nanoseconds;
+                        date= (new admin.firestore.Timestamp(seconds,nseconds)).toDate();
+
+                        date.setHours(date.getHours() + 5);
+                        date.setMinutes(date.getMinutes() + 30);
+
+                        var year    = ('00'+date.getFullYear()).slice(-4);
+                        var month   = ('00'+date.getMonth()+1).slice(-2);
+                        var day     = ('00'+date.getDate()).slice(-2);
+                        var hour    = ('00'+date.getHours()).slice(-2);
+                        var minute  = ('00'+date.getMinutes()).slice(-2);
+
+                        var strDate = `${day}/${month}/${year} ${hour}:${minute}`;
+
+                        console.log(strDate);
+
+                        //send appended data
+                        data[size].date = strDate;
+                    
+                    });
+
+
+
+                    //send data
+                     res.send(JSON.stringify(data));
+                }
+                else
+                {
+                    res.send("Use 'url?option=count' or 'url?option=data'");
+                }
+
+            });
 
         });
     });      
