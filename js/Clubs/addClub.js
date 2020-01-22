@@ -32,7 +32,8 @@ exports.addClub = functions.https.onRequest((req, res) => {
     const billingAddress = req.query.billingAddress;
     const state = req.query.state;
     const lat = req.query.lat;
-    const lon = req.query.lon; 
+    const lon = req.query.lon;
+    const isApproved = req.query.isApproved; 
 
    //Flags
    const shouldAdd = req.query.shouldAdd;   // ==144 add directly else send for approval
@@ -55,7 +56,7 @@ exports.addClub = functions.https.onRequest((req, res) => {
             +GSTCertificate==undefined?"":GSTCertificate+" "
             +PAN==undefined?"":PAN+" "
             +Aadhar==undefined?"":Aadhar,
-        week_tikens: "",
+        week_tokens: "",
         working_days: workingDays==undefined?"":workingDays,
         working_hours: workingHours==undefined?"":workingHours,
         year_tokens: "",
@@ -66,7 +67,8 @@ exports.addClub = functions.https.onRequest((req, res) => {
         billing_Phone: billingPhone==undefined?"":billingPhone,
         IFSC:IFSC==undefined?"":IFSC,
         billing_state: state==undefined?"":state,
-        GSTIN : GSTIN==undefined?"":GSTIN
+        GSTIN : GSTIN==undefined?"":GSTIN,
+        isApproved: isApproved==undefined?true:Boolean(isApproved)
     }
 
     return new Promise(function(resolve, reject)

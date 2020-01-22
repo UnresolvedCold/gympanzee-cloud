@@ -114,3 +114,46 @@ exports.getGymInfo = functions.https.onRequest((req, res) => {
         });
     });      
 });
+
+exports.getDataFromUsername = functions.https.onRequest((req, res) => {
+    cors(req, res, () => {     
+
+        const username = req.query.username;
+        var filter = "";
+        filter = req.query.filter;
+
+        return new Promise(function(resolve, reject)
+        {     
+                admin.firestore()       //get firestore reference
+                .collection("gyms")     //get collection named "gyms"
+                .where("username","==",username)
+                .get()
+                .then(function(doc)
+                {
+                    var data = doc.data();
+                    var date = data.date==undefined?{_seconds:0, _nanoseconds:0}:data.date;
+                    var seconds = date._seconds;
+                    var nseconds = date._nanoseconds;
+                    var date= (new admin.firestore.Timestamp(seconds,nseconds)).toDate();
+
+                    date.setHours(date.getHours() + 5);
+                    date.setMinutes(date.getMinutes() + 30);
+
+                    var year    = ('00'+date.getFullYear()).slice(-4);
+                    var month   = ('00'+(date.getMonth()+1)).slice(-2);
+                    var day     = ('00'+date.getDay()).slice(-2);
+                    var hour    = ('00'+date.getHours()).slice(-2);
+                    var minute  = ('00'+date.getMinutes()).slice(-2);
+
+                    var strDate = `${day}/${month}/${year} ${hour}:${minute}`;
+
+                    console.log(strDate);
+
+                    data.date = strDate;
+                
+                    res.send(JSON.stringify(data));   
+                });
+            
+        });
+    });      
+});

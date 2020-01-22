@@ -1,0 +1,31 @@
+{
+  "_ref": {
+    "_firestore": {
+      "_settings": {
+        "projectId": "gympanzee-v-1-0",
+        "firebaseVersion": "8.8.0",
+        "libName": "gccl",
+        "libVersion": "2.6.1 fire/8.8.0"
+      },
+      "_settingsFrozen": true,
+      "_serializer": { "timestampsInSnapshots": true },
+      "_projectId": "gympanzee-v-1-0",
+      "_lastSuccessfulRequest": 1579193082197,
+      "_preferTransactions": true,
+      "_clientPool": { "concurrentOperationLimit": 100, "activeClients": {} }
+    },
+    "_path": {
+      "segments": ["Temp", "OTP", "NewClub", "test"],
+      "projectId": "gympanzee-v-1-0",
+      "databaseId": "(default)"
+    }
+  },
+  "_fieldsProto": {
+    "otp": { "stringValue": "826468", "valueType": "stringValue" },
+    "number": { "stringValue": "7004219327", "valueType": "stringValue" }
+  },
+  "_serializer": { "timestampsInSnapshots": true },
+  "_readTime": { "_seconds": 1579193082, "_nanoseconds": 130467000 },
+  "_createTime": { "_seconds": 1579184835, "_nanoseconds": 245782000 },
+  "_updateTime": { "_seconds": 1579184835, "_nanoseconds": 245782000 }
+}
