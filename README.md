@@ -1,4 +1,4 @@
-# gympanzee-cloud
+# cloud-imp-intern
 
 The file, 'index.js' contains the implementation of all the requires functions necessary for handling requests on the web side.
 
