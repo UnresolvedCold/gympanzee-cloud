@@ -3,22 +3,6 @@ const admin = require('firebase-admin');
 const cors = require('cors')({origin: true});
 const request = require('request');
 
-const firebaseConfig = {
-    apiKey: "AIzaSyB4IV-tlnFXP09Df_i_dKn1Wm3jHX9ObJQ",
-    authDomain: "gympanzee-v-1-0.firebaseapp.com",
-    databaseURL: "https://gympanzee-v-1-0.firebaseio.com",
-    projectId: "gympanzee-v-1-0",
-    storageBucket: "gympanzee-v-1-0.appspot.com",
-    messagingSenderId: "629024763027",
-    appId: "1:629024763027:web:f2e4e723bb7cfeef93f166"
-  };
-
-//must be var as will change sometimes during execution  
-var textLocal = {
-    apiKey: "+Hc2/CYYkCY-WBtwCqLXtGUkH9aIu04FhXYy5chlpr",
-    sender: "GPNZEE"
-}   
-
 admin.initializeApp(firebaseConfig);
 
 var clubRoot =  admin.firestore().collection("Clubs").doc("clubs");
